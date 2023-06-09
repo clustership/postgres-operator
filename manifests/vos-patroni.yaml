@@ -1,0 +1,131 @@
+# Here we use https://github.com/prometheus-community/helm-charts/charts/kube-prometheus-stack
+# Please keep the ServiceMonitor's label same as the Helm release name of kube-prometheus-stack 
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vos
+---
+apiVersion: "acid.zalan.do/v1"
+kind: postgresql
+metadata:
+  name: pgdb
+  namespace: vos
+  labels:
+    app: vos
+spec:
+  teamId: "vos"
+  volume:
+    size: 32Gi
+  numberOfInstances: 2
+  users:
+    vos:  # database owner
+    - superuser
+    - createdb
+    vos_user: []  # role for application foo
+  databases:
+    vos: vos  # dbname: owner
+  # preparedDatabases:
+  #  bar: {}
+  postgresql:
+    version: "15"
+  sidecars:
+    - name: "exporter"
+      image: "wrouesnel/postgres_exporter"
+      ports:
+        - name: exporter
+          containerPort: 9187
+          protocol: TCP
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256M
+        requests:
+          cpu: 100m
+          memory: 200M
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vos-cluster-svc-metrics-master
+  namespace: vos
+  labels:
+    app: vos
+    spilo-role: master
+  annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9187"
+spec:
+  type: ClusterIP
+  ports:
+    - name: exporter
+      port: 9187
+      targetPort: exporter
+  selector:
+    application: spilo
+    cluster-name: pgdb
+    spilo-role: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vos-cluster-svc-metrics-replica
+  namespace: vos
+  labels:
+    app: vos
+    spilo-role: replica
+  annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9187"
+spec:
+  type: ClusterIP
+  ports:
+    - name: exporter
+      port: 9187
+      targetPort: exporter
+  selector:
+    application: spilo
+    cluster-name: pgdb
+    spilo-role: replica
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vos-cluster-svcm-master
+  namespace: vos
+  labels:
+    app: vos
+    spilo-role: master
+spec:
+  endpoints:
+    - port: exporter
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - vos
+  selector:
+    matchLabels:
+      app: vos
+      spilo-role: master
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vos-cluster-svcm-replica
+  namespace: vos
+  labels:
+    app: vos
+    spilo-role: replica
+spec:
+  endpoints:
+    - port: exporter
+      interval: 15s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - vos
+  selector:
+    matchLabels:
+      app: vos
+      spilo-role: replica

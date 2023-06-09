@@ -1,0 +1,33 @@
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: use-anyuid-scc-postgresql-operator
+  # replace with namespace where provisioner is deployed
+  namespace: postgresql-operator
+rules:
+  - apiGroups:
+    - security.openshift.io
+    resourceNames:
+    - anyuid
+    resources:
+    - securitycontextconstraints
+    verbs:
+    - use
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: use-anyuid-scc-postgresql-operator
+  # replace with namespace where provisioner is deployed
+  namespace: postgresql-operator
+subjects:
+  - kind: ServiceAccount
+    name: postgres-operator
+    # replace with namespace where provisioner is deployed
+    namespace: postgresql-operator
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: use-anyuid-scc-postgresql-operator
+  namespace: postgresql-operator
