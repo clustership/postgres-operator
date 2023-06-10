@@ -22,13 +22,21 @@ spec:
     vos:  # database owner
     - superuser
     - createdb
-    vos_user: []  # role for application foo
+    # vos_user: []  # role for application foo
   databases:
     vos: vos  # dbname: owner
   # preparedDatabases:
   #  bar: {}
   postgresql:
     version: "15"
+  patroni:
+    pg_hba:
+      - local   all         all     trust
+      - host    all         all     ::1/128            md5
+      - local   replication standby trust
+      - hostssl replication standby all                md5
+      - hostssl all         all     all                md5
+      - host    all         all     all                md5
   sidecars:
     - name: "exporter"
       image: "wrouesnel/postgres_exporter"
